@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="display-6">Tokopedia Price Tracker</h1>
+        <p class="text-muted">Track and monitor product prices effortlessly</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+            <i class="bi bi-plus-circle me-2"></i>Add New Link
+        </button>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Total Items</h5>
+                <h2 class="display-6">{{ items_no }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Discounted Items</h5>
+                <h2 class="display-6">{{ no_discounted }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Tracking Since</h5>
+                <h2 class="display-6">{% if qs.exists %}{{ qs.first.created|date:"M Y" }}{% else %}No Data{% endif %}</h2>
+            </div>
+        </div>
+    </div>
+   
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Link</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="add_link" value="1">
+                <div class="modal-body">
+                    {{ form|crispy }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Item Modal -->
+<div class="modal fade" id="editItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Link</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="update_link" value="1">
+                <input type="hidden" name="link_id" id="edit-link-id">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>URL</label>
+                        <input type="url" name="url" class="form-control" id="edit-link-url" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Messages -->
+{% if messages %}
+<div class="messages mt-3">
+    {% for message in messages %}
+        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+            {{ message }}
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+
+{% if qs %}
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for item in qs %}
+    <div class="col">
+        <div class="card h-100">
+            {% if item.img %}
+            <img src="{{ item.img }}" class="card-img-top" alt="{{ item.name }}">
+            {% endif %}
+            <div class="card-body">
+                <h5 class="card-title">{{ item.name|truncatechars:50 }}</h5>
+                <div class="mb-3">
+                    <span class="badge bg-primary price-badge">
+                        Rp{{ item.current_price|format_price }}
+                    </span>
+                    <span class="badge bg-secondary ms-2">
+                        <i class="bi bi-link-45deg me-1"></i>
+                        <a href="{{ item.url }}" target="_blank" class="text-white text-decoration-none">
+                            View Product
+                        </a>
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted">Old Price: Rp{{ item.old_price|format_price }}</small>
+                        <div class="price-difference {% if item.price_difference > 0 %}positive{% elif item.price_difference < 0 %}negative{% endif %}">
+                            Price Change: Rp{{ item.price_difference|format_price }}
+                        </div>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <a href="#" class="btn btn-sm btn-outline-danger" 
+                           onclick="confirmDelete('{% url 'delete-link' item.pk %}')">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                        <a href="#" class="btn btn-sm btn-outline-primary edit-link" 
+                           data-id="{{ item.pk }}" 
+                           data-url="{{ item.url }}"
+                           data-bs-toggle="modal" 
+                           data-bs-target="#editItemModal">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer text-muted small">
+                <div class="d-flex justify-content-between">
+                    <span>Created: {{ item.created|date:"d M Y" }}</span>
+                    <span>Updated: {{ item.updated|date:"d M Y" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info text-center" role="alert">
+    <i class="bi bi-info-circle me-2"></i>
+    No items being tracked. Start by adding a new link!
+</div>
+{% endif %}
+{% endblock content %}
+
+
+{% block script %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // edit link modal population
+        const editLinks = document.querySelectorAll('.edit-link');
+        editLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                const linkId = this.getAttribute('data-id');
+                const linkUrl = this.getAttribute('data-url');
+
+                document.getElementById('edit-link-id').value = linkId;
+                document.getElementById('edit-link-url').value = linkUrl;
+            });
+        });
+    });
+
+    // Confirm delete function
+    function confirmDelete(deleteUrl) {
+        if (confirm('Are you sure you want to delete this item?')) {
+            window.location.href = deleteUrl;
+        }
+    }
+</script>
+{% endblock script %}
+
